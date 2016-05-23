@@ -342,15 +342,12 @@ public:
      * @brief    This will be called in interrupt while waiting for send prompt
      * @retval    returns true on successful exit
      */
-    inline bool handleInterruptSimple()
+    inline bool handleInterruptSimple() __attribute__((always_inline))
     {
-        ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+//        ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
         ser.handle_interrupt();
-        uint8_t c = ser.peek();
-        OTSIM900LINK_DEBUG_SERIAL_PRINTFMT(c, HEX)
-        OTSIM900LINK_DEBUG_SERIAL_PRINTLN();
         return true;
-        }
+//        }
     }
 
 #ifndef OTSIM900LINK_DEBUG // This is included to ease unit testing.
@@ -452,14 +449,20 @@ private:
     uint8_t timedBlockingRead(char *data, uint8_t length)
     {
         // clear buffer, get time and init i to 0
-        uint8_t counter = 0;
         uint8_t len = length;
         char *pdata = data;
+        uint8_t counter = 0;
+//        memset(data, 0, length);
+//        while(len--) {
+//            char c = ser.read();
+//            if(c == -1) break;
+//            *pdata++ = c;
+//            counter++;
+//        }
         memset(data, 0, length);
-        while(len--) {
-            char c = ser.read();
-            if(c == -1) break;
-            *pdata++ = c;
+        while(ser.available() < 9) {}
+        while(ser.available()) {
+            *pdata++ = ser.read();
             counter++;
         }
     #if 0

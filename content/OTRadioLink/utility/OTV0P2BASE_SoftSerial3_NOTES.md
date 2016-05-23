@@ -39,4 +39,4 @@
     - As values read from buffer, head is incremented until it reaches the tail.
 - This means characters are discarded after the read buffer is full.
 - Occasionally enters interrupt too late causing garbled chars.
-- 
+- Ignoring final bit as otherwise it doesn't reenter the interrupt quickly enough.

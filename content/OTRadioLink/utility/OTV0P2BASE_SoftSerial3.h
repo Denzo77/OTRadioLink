@@ -44,16 +44,16 @@ class OTSoftSerial3 : public Stream
 protected:
     // All these are compile time calculations and are automatically substituted as part of program code.
     static const constexpr uint16_t bitCycles = (F_CPU/4) / speed;
-    static const constexpr uint8_t writeDelay = bitCycles - 5;
-    static const constexpr uint8_t quarterDelay = (bitCycles / 4) - 4;  // For multisampling bits
-    static const constexpr uint8_t halfDelay = (bitCycles / 2) - 7;  // Standard inter-bit delay
-    static const constexpr uint8_t longDelay = halfDelay + 5;  // Longer inter-bit delay
-    static const constexpr uint8_t shortDelay = halfDelay - 5;  // Shorter inter-bit delay
-    static const constexpr uint8_t startDelay = (bitCycles/2)-2; // + (bitCycles / 4);  // 1 bit delay to skip start bit + 1 quarter bit delay for first read position.
+    static const constexpr uint8_t writeDelay = bitCycles - 3;
+    static const constexpr uint8_t quarterDelay = (bitCycles / 4) - 1;  // For multisampling bits
+    static const constexpr uint8_t halfDelay = (bitCycles / 2) - 6;  // Standard inter-bit delay
+    static const constexpr uint8_t longDelay = halfDelay + quarterDelay;  // Longer inter-bit delay
+    static const constexpr uint8_t shortDelay = halfDelay - quarterDelay;  // Shorter inter-bit delay
+    static const constexpr uint8_t startDelay = (3 * bitCycles / 4) - 2;  // 3/4 bit delay + isr entry for first read
 
     uint8_t rxBufferHead;
     volatile uint8_t rxBufferTail;
-    volatile uint8_t rxBuffer[OTSOFTSERIAL3_BUFFER_SIZE];
+    uint8_t rxBuffer[OTSOFTSERIAL3_BUFFER_SIZE];
 
 public:
     /**
@@ -99,19 +99,19 @@ public:
 
             // Send start bit
             fastDigitalWrite(txPin, LOW);
-            _delay_x4cycles(writeDelay); // fixme delete -5s
+            _softserial_delay(writeDelay); // fixme delete -5s
 
             // send byte. Loops until mask overflows back to 0
             while(mask != 0) {
                 if (mask & c) fastDigitalWrite(txPin, HIGH);
                 else fastDigitalWrite(txPin, LOW);
-                _delay_x4cycles(writeDelay);
+                _softserial_delay(writeDelay);
                 mask = mask << 1;    // bit shift to next value
             }
 
             // send stop bit
             fastDigitalWrite(txPin, HIGH);
-            _delay_x4cycles(writeDelay);
+            _softserial_delay(writeDelay);
             rxBufferHead = 0;
             rxBufferTail = 0;
         }
@@ -170,6 +170,18 @@ public:
         fastDigitalWrite(txPin, HIGH);
     }
 
+    inline void _softserial_delay(uint8_t n) __attribute__((always_inline))
+    {
+        __asm__ volatile // Similar to _delay_loop_1() from util/delay_basic.h but multiples of 4 cycles are easier.
+           (
+            "1: dec  %0" "\n\t"
+            "   breq 2f" "\n\t"
+            "2: brne 1b"
+            : "=r" (n)
+            : "0" (n)
+          );
+    }
+
     /**
      * @brief   Handle interrupts
      */
@@ -179,7 +191,7 @@ public:
         uint8_t bufptr = rxBufferTail;
         uint8_t val = 0;
         // wait for first read time (start bit + 1 quarter of 1st bit)
-        _delay_x4cycles(startDelay);
+        _softserial_delay(startDelay);
 
         // step through bits and read value    // FIXME better way of doing this?
         // We do first 7 bits in loops and then last bit out of loop to avoid delay.
@@ -189,22 +201,22 @@ public:
             uint8_t bitval = 0;
             bitval = fastDigitalRead(rxPin);
             bitval = (bitval << 1);
-            _delay_x4cycles(quarterDelay);
+            _softserial_delay(quarterDelay);
             bitval += fastDigitalRead(rxPin);
             bitval = (bitval << 1);
-            _delay_x4cycles(quarterDelay);
+            _softserial_delay(quarterDelay);
             bitval += fastDigitalRead(rxPin);
             // Work out if bit high and adjust delay.
             if ((bitval >= 5) || (bitval == 3)) { // True
                 val += (1 << 7);
-                if(bitval == 0b011) _delay_x4cycles(longDelay);  // Too fast
-                else if (bitval == 0b110) _delay_x4cycles(shortDelay);  // Too slow
-                else _delay_x4cycles(halfDelay);
+                if(bitval == 0b011) _softserial_delay(longDelay);  // Too fast
+                else if (bitval == 0b110) _softserial_delay(shortDelay);  // Too slow
+                else _softserial_delay(halfDelay);
             } else { // False
                 val += (0 << 7);
-                if(bitval == 0b100) _delay_x4cycles(longDelay); // Too fast
-                else if ( bitval == 0b001) _delay_x4cycles(shortDelay); // Too slow
-                else _delay_x4cycles(halfDelay);
+                if(bitval == 0b100) _softserial_delay(longDelay); // Too fast
+                else if ( bitval == 0b001) _softserial_delay(shortDelay); // Too slow
+                else _softserial_delay(halfDelay);
             }
             val = val >> 1;  // shift down.
         }
