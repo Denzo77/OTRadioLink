@@ -372,7 +372,7 @@ public:
 
     // Set non-zero when valve flow is increased, and then counts down to zero.
     // Some or all attempts to close the valve are deferred while this is non-zero
-    // to reduce valve hunting if there is string turbulence from the radiator
+    // to reduce valve hunting if there is strong turbulence from the radiator
     // or maybe draughts from open windows/doors
     // causing measured temperatures to veer up and down.
     // This attempts to reduce excessive valve noise and energy use
