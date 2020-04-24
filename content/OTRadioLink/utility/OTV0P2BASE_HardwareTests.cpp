@@ -89,7 +89,7 @@ bool check32768HzOsc()
 #endif
 #endif
 
-#ifdef ARDUINO_ARCH_AVR
+#if defined(ARDUINO_ARCH_AVR)
 // Returns true if the 32768Hz low-frequency async crystal oscillator appears to be running and sane.
 // Performs an extended test that the CPU (RC) and crystal frequencies are in a sensible ratio.
 // This means the the Timer 2 clock needs to be running
@@ -142,10 +142,18 @@ bool check32768HzOscExtended()
     }
 #endif // ARDUINO_ARCH_AVR
 
-#ifdef ARDUINO_ARCH_AVR
+#if defined(ARDUINO_ARCH_AVR)
 
 /**
- * @brief	Calibrate the internal RC oscillator against and external 32786 Hz crystal oscillator or resonator. The target frequency is 1 MHz.
+ * @brief	Calibrate the internal RC oscillator against and external 32786 Hz
+ *          crystal oscillator or resonator. The target frequency is 1 MHz.
+ * 
+ * UART typically works with up ~3% clock drift between devices. Given that,
+ * 1% drift on a Radbot should be acceptable.
+ * At 1 MHz, an error of 1 count (34 CPU cycles) between the main clock and the
+ * XTal corresponds to %0.5 error. Therefore, checking if we are within 2
+ * counts is reasonable.
+ * 
  * @param   todo do we want settable stuff, e.g. ext osc rate, internal osc rate, etc?
  * @retval  True on calibration success. False if Xtal not running or calibration fails.
  * @note    OSCCAL register is cleared on reset so changes are not persistent.
@@ -227,9 +235,12 @@ bool calibrateInternalOscWithExtOsc()
 //        delay(1000);
 #endif // 1
         // Set new calibration value.
-        if ((OSCCAL == 0x80) || (OSCCAL == 0xFF)) return false;  // Return false if OSCCAL is at limits.
-        if(count > targetCount) OSCCAL--;
-        else if(count < targetCount) OSCCAL++;
+        // Return false if OSCCAL is at limits.
+        if ((OSCCAL == 0x80) || (OSCCAL == 0xFF)) { return false; }
+        // TRV-206 fix: This is crude but simple. Returns when within 1% of the
+        // XTAL.
+        if(count > (targetCount + 1)) OSCCAL--;
+        else if(count < (targetCount - 1)) OSCCAL++;
         else {
             return true;
 #if 0
