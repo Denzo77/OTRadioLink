@@ -12,6 +12,7 @@
 /.vscode/ipch
 
 # Meson build dirs
+/build
 /buildclang
 /builddir
 /subprojects
