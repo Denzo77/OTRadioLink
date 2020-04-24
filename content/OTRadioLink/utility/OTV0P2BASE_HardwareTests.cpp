@@ -204,8 +204,7 @@ bool calibrateInternalOscWithExtOsc()
     _delay_x4cycles(2); // > 8 us. max oscillator settling time is 5 us.
 
     // Calibration routine
-    for(uint8_t i = 0; i < maxTries; i++)
-	{
+    for(uint8_t i = 0; i < maxTries; i++) {
     	uint8_t count = 0;
 #if 0
         OTV0P2BASE::serialPrintAndFlush("OSCCAL: "); // 10000001 on my test version
@@ -218,6 +217,7 @@ bool calibrateInternalOscWithExtOsc()
 			const uint8_t t1 = TCNT2 + 1;
 			while(t0 == TCNT2) {}
 			// Start counting cycles.
+            // This do-while was required to satisfy timing constraints.
 			do {
 				count++; // 2 cycles?
 				// 8*4 = 32 cycles per count.
@@ -239,9 +239,11 @@ bool calibrateInternalOscWithExtOsc()
         if ((OSCCAL == 0x80) || (OSCCAL == 0xFF)) { return false; }
         // TRV-206 fix: This is crude but simple. Returns when within 1% of the
         // XTAL.
-        if(count > (targetCount + 1)) OSCCAL--;
-        else if(count < (targetCount - 1)) OSCCAL++;
-        else {
+        if(count > (targetCount + 1)) {
+            OSCCAL--;
+        } else if(count < (targetCount - 1)) {
+            OSCCAL++;
+        } else {
             return true;
 #if 0
             while (true) {
