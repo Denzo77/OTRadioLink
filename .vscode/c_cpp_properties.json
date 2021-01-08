@@ -11,7 +11,7 @@
             "cStandard": "c11",
             "cppStandard": "c++14",
             "intelliSenseMode": "clang-x64",
-            "compileCommands": "/home/denzo/git/OTAESGCM/build/compile_commands.json",
+            "compileCommands": "${workspaceFolder}/build/compile_commands.json",
             "forcedInclude": []
         }
     ],
